@@ -1,147 +1,137 @@
-# 2020 Budget Application
+# 2020 Budget Application (Vanilla JS)
 
-A lightweight, browser-based budgeting app that lets you add income and expenses and see your remaining budget update instantly.
+A lightweight budgeting UI built with **plain HTML/CSS/JavaScript**. Users can add **income** and **expense** line items and see the budget summary update immediately.
 
-## Highlights
+This repo is designed as a portfolio-friendly example of:
 
-- **Add transactions**: Create **Income (+)** or **Expense (-)** items with a description and numeric value.
-- **Live budget totals**: Automatically recalculates and displays:
-  - Total income
-  - Total expenses
-  - Remaining budget (income − expenses)
-  - Expense percentage (expenses ÷ income)
-- **Delete transactions**: Remove any income/expense item and immediately see totals refresh.
-- **Current month label**: The header month is set automatically from the user’s system date on page load.
+- clean separation between **data/model**, **UI rendering**, and **application orchestration**
+- DOM event wiring via **event delegation**
+- deterministic, testable business math for budget totals
 
-## Technical Highlights
+## What it does (product view)
 
-- **Module pattern (IIFEs)**: The app is split into three self-contained modules in `js/app.js`:
-  - `budgetController` (data + math)
-  - `UIController` (DOM reads/writes)
-  - `controller` (event wiring + orchestration)
-- **Single source of truth for calculations**: Totals and budget are computed from the internal `data` structure (not from the DOM).
-- **Deterministic IDs**: Each new item is assigned an ID based on the last item in its category (`inc` / `exp`).
-- **Event delegation for deletes**: A single click handler on the `.container` detects delete clicks and removes the right item.
-- **Safe init timing**: App initialization runs on `DOMContentLoaded` to ensure the month label and budget labels exist before updates.
+- Add **Income (+)** items (description + numeric amount)
+- Add **Expense (-)** items (description + numeric amount)
+- Delete any item and see totals update instantly
+- Show a top summary:
+  - total income
+  - total expenses
+  - remaining budget (income − expenses)
+  - overall expense percentage (expenses ÷ income)
+- Display the **current month** from the user’s system clock
 
-## Key Functions (quick scan)
+## Tech stack
 
-| Area | Function | Responsibility |
-|------|----------|----------------|
-| Data | `budgetController.addItem(type, des, val)` | Creates an `Income` / `Expense`, assigns an ID, stores it in the data model |
-| Data | `budgetController.deleteItem(type, id)` | Removes an item from the data model by type + ID |
-| Data | `budgetController.calculateBudget()` | Computes totals, remaining budget, and overall expense percentage |
-| Data | `budgetController.getBudget()` | Returns a snapshot of computed values for the UI |
-| UI | `UIController.getInput()` | Reads user input from the form controls |
-| UI | `UIController.addListItem(obj, type)` | Renders a new income/expense row in the correct list |
-| UI | `UIController.deleteListItem(selectorID)` | Removes a rendered row from the DOM |
-| UI | `UIController.displayBudget(obj)` | Updates the top summary numbers (budget/income/expenses/percentage) |
-| UI | `UIController.displayMonth()` | Sets the month label based on the system date |
-| App | `controller.init()` | Initializes month + default totals and wires event listeners |
-| App | `updateBudget()` | Orchestrates recompute + re-render after changes |
-| App | `ctrlAddItem()` | Handles add-item flow (read input → store → render → clear → update totals) |
-| App | `ctrlDeleteItem(event)` | Handles delete flow (find clicked item → remove data → remove UI → update totals) |
+- **HTML5** for structure
+- **CSS3** for layout and styling (BEM-style class naming)
+- **Vanilla JavaScript** using the module pattern (IIFEs)
+- External assets:
+  - Google Fonts (Open Sans)
+  - Ionicons (v2) via CDN
 
-## How It Works (at a glance)
+## Architecture (developer view)
 
-- Built with vanilla JavaScript using a simple module pattern:
-  - **Budget Controller**: Stores items and computes totals/percentages.
-  - **UI Controller**: Reads input, renders list items, and updates totals/month label.
-  - **App Controller**: Wires event listeners and coordinates updates.
+All application logic lives in `js/app.js` and is intentionally split into three modules:
 
-## Code Walkthrough (How the app works)
+1) **`budgetController` (model + calculations)**
 
-### 1) Data model (Budget Controller)
+- Owns all in-memory state in a single `data` object:
 
-The internal state lives in a `data` object:
+  ```js
+  {
+    allItems: { inc: [], exp: [] },
+    totals: { inc: 0, exp: 0 },
+    budget: 0,
+    percentage: -1
+  }
+  ```
 
-```js
-data = {
-  allItems: { inc: [], exp: [] },
-  totals:   { inc: 0,  exp: 0  },
-  budget: 0,
-  percentage: -1
-}
-```
+- Creates items via simple constructor functions (`Income`, `Expense`)
+- Assigns deterministic IDs per type (last ID + 1)
+- Performs all math in one place:
+  - `totalInc = sum(inc)`
+  - `totalExp = sum(exp)`
+  - `budget = totalInc - totalExp`
+  - `percentage = round((totalExp / totalInc) * 100)` or `-1` when income is 0
 
-- `addItem(type, description, value)`
-  - Creates a new `Income` or `Expense` instance
-  - Assigns a numeric `id`
-  - Pushes it into `data.allItems[type]`
-- `deleteItem(type, id)`
-  - Finds the matching item by ID and removes it from the array
-- `calculateBudget()`
-  - Recomputes totals, then:
-    - `budget = totalInc - totalExp`
-    - `percentage = Math.round((totalExp / totalInc) * 100)` (or `-1` if no income)
-- `getBudget()`
-  - Returns a snapshot object for the UI to display
+2) **`UIController` (DOM reads/writes)**
 
-### 2) Rendering + DOM updates (UI Controller)
+- Centralizes query selectors in a `DOMStrings` map
+- Reads form data via `getInput()` and parses numeric values with `parseFloat`
+- Renders list items by building HTML strings and inserting them with `insertAdjacentHTML`
+- Updates the “budget header” UI in one method (`displayBudget`)
+- Sets the month label via `displayMonth()` (uses `new Date()` + month name lookup)
 
-- `getInput()` reads:
-  - `.add__type` (inc/exp)
-  - `.add__description`
-  - `.add__value` (parsed to a number)
-- `addListItem(obj, type)`
-  - Builds an HTML string for the list item
-  - Replaces placeholders (ID/description/value)
-  - Inserts it into either `.income__list` or `.expenses__list`
-- `displayBudget(budget)`
-  - Updates the labels at the top of the page (`budget`, `income`, `expenses`, `percentage`)
-- `displayMonth()`
-  - Uses `new Date()` + a month-name array
-  - Writes the current month into `.budget__title--month`
+3) **`controller` (wiring + orchestration)**
 
-### 3) App flow (Global Controller)
+- Owns event listener registration
+- Defines the two main user flows:
+  - `ctrlAddItem()` — validate → add to model → render → clear fields → recompute summary
+  - `ctrlDeleteItem()` — identify clicked row → delete from model → delete from DOM → recompute summary
+- Initializes safely on `DOMContentLoaded` to ensure the month label exists
 
-On page load:
+## Key interaction flows
 
-1. `controller.init()` runs (after `DOMContentLoaded`)
-2. Calls `UICtrl.displayMonth()` to set the month label
-3. Calls `UICtrl.displayBudget(...)` with zeros for the initial state
-4. Calls `setupEventListeners()`
+### Add item
 
-When you add an item (button click or Enter):
+1. Read UI input (type/description/value)
+2. Validate basic constraints (non-empty description, numeric value > 0)
+3. Add item to the data model
+4. Render the new row into the appropriate list
+5. Clear and focus the input fields
+6. Recompute totals and repaint the summary
 
-1. Read form input (`UICtrl.getInput()`)
-2. Create and store the item (`budgetCtrl.addItem(...)`)
-3. Render the row (`UICtrl.addListItem(...)`)
-4. Clear the input fields (`UICtrl.clearFields()`)
-5. Recalculate + redraw totals (`updateBudget()` → `budgetCtrl.calculateBudget()` → `UICtrl.displayBudget(...)`)
+### Delete item (event delegation)
 
-When you delete an item:
+Instead of adding a click handler per row, the app attaches **one** handler to `.container` and uses bubbling to determine which item was targeted. The DOM row IDs (`inc-0`, `exp-3`, …) provide a stable bridge between UI and model.
 
-1. The click bubbles to the container handler
-2. The code reads the row `id` like `inc-0` / `exp-3`
-3. Removes from data (`budgetCtrl.deleteItem(type, id)`)
-4. Removes from DOM (`UICtrl.deleteListItem(rowId)`)
-5. Recalculates + redraws totals (`updateBudget()`)
+## Design & implementation details (the “why”)
 
-## Run Locally
+- **Separation of concerns**: The UI never “calculates” totals; it only displays values returned by `budgetController.getBudget()`.
+- **Single source of truth**: All totals derive from the in-memory arrays (`data.allItems.inc/exp`). The DOM is treated as a view.
+- **Deterministic IDs**: IDs are predictable, stable per list, and cheap to generate without external dependencies.
+- **Composable update step**: `updateBudget()` isolates “recompute + repaint” so both add and delete flows stay consistent.
+- **Graceful empty-income state**: When income is 0, percentage shows `---` to avoid misleading output.
 
-### Option A: Open directly
-1. Open `index.html` in your browser.
+## UX and visual design
 
-### Option B: Serve as a static site (recommended)
+- Two-column layout for Income vs Expenses
+- Strong visual hierarchy in the top summary panel
+- Color language:
+  - teal for income
+  - red for expenses
+- Background image + overlay gradient for legibility
 
-Use any simple static server so asset paths behave consistently.
+## Limitations / polish opportunities (intentional transparency)
 
-- Node: `npx http-server` (run from the project folder)
-- Python: `python -m http.server` (run from the project folder)
+This project keeps the implementation intentionally simple. A few areas are good candidates for follow-up work:
 
-## Tech
+- **No persistence**: data lives in memory only; refresh resets the budget.
+- **Number formatting**: values are displayed as raw numbers (no currency formatting or thousands separators).
+- **Per-expense percentage**: the expense row markup currently includes a placeholder percentage value.
+- **Delete targeting**: the delete handler relies on chained `parentNode` traversal, which is fragile if markup changes.
+- **Keyboard handling**: it uses `keypress`/keyCode patterns that are considered legacy in modern browsers.
 
-- HTML / CSS
-- Vanilla JavaScript (no frameworks)
+## Run locally
 
-## Project Structure
+### Option A — Open directly
 
-- `index.html` — App layout and script entry
-- `css/style.css` — Styling
-- `js/app.js` — Application logic
+- Open `index.html` in your browser.
 
-## Notes
+### Option B — Serve as a static site (recommended)
 
-- Values are entered as numbers and calculations update immediately after adding or deleting items.
-- The expense percentage is shown only when income is greater than zero.
+- Node: `npx http-server`
+- Python: `python -m http.server`
+
+Then open the printed local URL.
+
+## Repository layout
+
+- `index.html` — page structure and script entry
+- `css/style.css` — styling
+- `js/app.js` — application logic
+- `images/` — background image asset
+
+## For recruiters / hiring teams
+
+If you’re scanning for signal: this project emphasizes **clean modularization**, **DOM event patterns**, and **predictable state updates** without frameworks.
