@@ -1,0 +1,9 @@
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Local tooling
+.vscode/
+
+# Logs
+*.log
