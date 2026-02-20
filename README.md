@@ -1,10 +1,12 @@
-# 2020 Budget Application (Vanilla JS)
+# Budget Application
 
 A lightweight budgeting UI built with **plain HTML/CSS/JavaScript**. Users can add **income** and **expense** line items and see the budget summary update immediately.
 
-This repo is designed as a portfolio-friendly example of:
+Live preview: https://budgetapp.fcjamison.com/
 
-- clean separation between **data/model**, **UI rendering**, and **application orchestration**
+This repo is intentionally framework-free and is designed as a clean reference implementation of:
+
+- separation between **data/model**, **UI rendering**, and **application orchestration**
 - DOM event wiring via **event delegation**
 - deterministic, testable business math for budget totals
 
@@ -29,11 +31,54 @@ This repo is designed as a portfolio-friendly example of:
   - Google Fonts (Open Sans)
   - Ionicons (v2) via CDN
 
+## Getting started (developers)
+
+### Prerequisites
+
+You only need a modern web browser.
+
+Optional (recommended) for local development:
+
+- Node.js (to run a tiny static server)
+- OR Python (built-in static server)
+- OR a VS Code static server extension (for example, “Live Server”)
+
+### Run locally
+
+This is a static site. No build step.
+
+#### Option A — open directly
+
+- Open `index.html` in your browser.
+
+Note: opening via `file://` works for most features, but running a local server tends to better match production behavior.
+
+#### Option B — serve as a static site (recommended)
+
+From the repo root:
+
+- Node: `npx http-server`
+- Python (3.x): `python -m http.server`
+
+Then open the printed local URL.
+
+### VS Code workflow
+
+- Open the repo folder in VS Code.
+- If your workspace includes a task that opens a local URL (for example `http://thebudgetapplication.localhost/`), run the VS Code task **“Open in Browser”**.
+
+## Repository layout
+
+- `index.html` — page structure and script entry
+- `css/style.css` — styling
+- `js/app.js` — application logic
+- `images/` — background image asset
+
 ## Architecture (developer view)
 
-All application logic lives in `js/app.js` and is intentionally split into three modules:
+All application logic lives in `js/app.js` and is intentionally split into three modules (module pattern via IIFEs):
 
-1) **`budgetController` (model + calculations)**
+1. **`budgetController` (model + calculations)**
 
 - Owns all in-memory state in a single `data` object:
 
@@ -54,7 +99,7 @@ All application logic lives in `js/app.js` and is intentionally split into three
   - `budget = totalInc - totalExp`
   - `percentage = round((totalExp / totalInc) * 100)` or `-1` when income is 0
 
-2) **`UIController` (DOM reads/writes)**
+2. **`UIController` (DOM reads/writes)**
 
 - Centralizes query selectors in a `DOMStrings` map
 - Reads form data via `getInput()` and parses numeric values with `parseFloat`
@@ -62,13 +107,40 @@ All application logic lives in `js/app.js` and is intentionally split into three
 - Updates the “budget header” UI in one method (`displayBudget`)
 - Sets the month label via `displayMonth()` (uses `new Date()` + month name lookup)
 
-3) **`controller` (wiring + orchestration)**
+3. **`controller` (wiring + orchestration)**
 
 - Owns event listener registration
 - Defines the two main user flows:
   - `ctrlAddItem()` — validate → add to model → render → clear fields → recompute summary
   - `ctrlDeleteItem()` — identify clicked row → delete from model → delete from DOM → recompute summary
 - Initializes safely on `DOMContentLoaded` to ensure the month label exists
+
+## Development notes
+
+### External dependencies
+
+This project pulls a couple of assets via CDN (fonts/icons). If you are developing offline, some icons/fonts may not render until you restore network access.
+
+### Data lifecycle
+
+- Data is stored **in memory only** (refresh resets state).
+- DOM row IDs (`inc-0`, `exp-3`, …) are used as the bridge between the UI and the model.
+
+### Browser support
+
+The code is written for modern evergreen browsers. It uses classic DOM APIs and should work in current Chrome/Edge/Firefox/Safari.
+
+### Troubleshooting
+
+- **Icons/fonts not showing**: check your network connection (CDN assets) and your browser DevTools console/network tab.
+- **Things behave differently than production**: prefer running a local server instead of opening `index.html` via `file://`.
+- **Local URL doesn’t load** (e.g. `http://thebudgetapplication.localhost/`): ensure whatever is hosting/serving that domain is running; otherwise use one of the static server options above.
+
+### Common modifications
+
+- **Change styling/layout**: edit `css/style.css`.
+- **Update calculations/business rules**: update `budgetController` in `js/app.js`.
+- **Change markup/labels**: edit `index.html` and/or the HTML string templates in `UIController`.
 
 ## Key interaction flows
 
@@ -112,25 +184,20 @@ This project keeps the implementation intentionally simple. A few areas are good
 - **Delete targeting**: the delete handler relies on chained `parentNode` traversal, which is fragile if markup changes.
 - **Keyboard handling**: it uses `keypress`/keyCode patterns that are considered legacy in modern browsers.
 
-## Run locally
+## Contributing
 
-### Option A — Open directly
+Small, focused improvements are welcome.
 
-- Open `index.html` in your browser.
+- Keep changes framework-free (no bundlers required).
+- Preserve the three-module separation in `js/app.js`.
+- Prefer readable, explicit DOM code over clever abstractions.
 
-### Option B — Serve as a static site (recommended)
+## Deployment
 
-- Node: `npx http-server`
-- Python: `python -m http.server`
+This app can be deployed to any static hosting provider (GitHub Pages, Netlify, Vercel static, S3, etc.).
 
-Then open the printed local URL.
-
-## Repository layout
-
-- `index.html` — page structure and script entry
-- `css/style.css` — styling
-- `js/app.js` — application logic
-- `images/` — background image asset
+- Upload `index.html` plus the `css/`, `js/`, and `images/` folders.
+- No environment variables or server configuration are required.
 
 ## For recruiters / hiring teams
 
