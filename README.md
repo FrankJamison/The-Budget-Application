@@ -1,204 +1,188 @@
 # Budget Application
 
-A lightweight budgeting UI built with **plain HTML/CSS/JavaScript**. Users can add **income** and **expense** line items and see the budget summary update immediately.
+A lightweight budgeting UI built with plain HTML/CSS/JavaScript. Users add income and expense line items and the budget summary recalculates immediately.
 
 Live preview: https://budgetapp.fcjamison.com/
 
-This repo is intentionally framework-free and is designed as a clean reference implementation of:
+This repo is intentionally framework-free. It’s a good reference for:
 
-- separation between **data/model**, **UI rendering**, and **application orchestration**
-- DOM event wiring via **event delegation**
-- deterministic, testable business math for budget totals
+- separation between model (business math), UI rendering, and orchestration
+- DOM event wiring via event delegation
+- small, deterministic state management without dependencies
 
-## What it does (product view)
+## Features (user-facing)
 
-- Add **Income (+)** items (description + numeric amount)
-- Add **Expense (-)** items (description + numeric amount)
+- Add Income (+) and Expense (-) items (description + numeric amount)
 - Delete any item and see totals update instantly
-- Show a top summary:
+- Top summary:
   - total income
   - total expenses
   - remaining budget (income − expenses)
   - overall expense percentage (expenses ÷ income)
-- Display the **current month** from the user’s system clock
+- Displays the current month from the user’s system clock
 
 ## Tech stack
 
-- **HTML5** for structure
-- **CSS3** for layout and styling (BEM-style class naming)
-- **Vanilla JavaScript** using the module pattern (IIFEs)
-- External assets:
+- HTML5 + CSS3 (BEM-style class naming)
+- Vanilla JavaScript (module pattern via IIFEs)
+- CDN assets:
   - Google Fonts (Open Sans)
-  - Ionicons (v2) via CDN
+  - Ionicons v2
 
-## Getting started (developers)
+## Quickstart (developers)
 
-### Prerequisites
+This is a static site: no build step, no package manager required.
 
-You only need a modern web browser.
-
-Optional (recommended) for local development:
-
-- Node.js (to run a tiny static server)
-- OR Python (built-in static server)
-- OR a VS Code static server extension (for example, “Live Server”)
-
-### Run locally
-
-This is a static site. No build step.
-
-#### Option A — open directly
+### Option A — open the file (fastest)
 
 - Open `index.html` in your browser.
 
-Note: opening via `file://` works for most features, but running a local server tends to better match production behavior.
+Notes:
 
-#### Option B — serve as a static site (recommended)
+- Running via `file://` works, but serving over HTTP is closer to real hosting.
+- The icon font and Google font are loaded from CDNs, so offline development will look different.
+
+### Option B — run a local static server (recommended)
 
 From the repo root:
 
-- Node: `npx http-server`
-- Python (3.x): `python -m http.server`
+- Node: `npx http-server` (or any static server)
+- Python 3: `python -m http.server`
 
-Then open the printed local URL.
+Then open the URL printed in the terminal.
 
-### VS Code workflow
+### Option C — use the workspace URL task
 
-- Open the repo folder in VS Code.
-- If your workspace includes a task that opens a local URL (for example `http://thebudgetapplication.localhost/`), run the VS Code task **“Open in Browser”**.
+This workspace includes a VS Code task named “Open in Browser” that opens:
 
-## Repository layout
+- `http://thebudgetapplication.localhost/`
 
-- `index.html` — page structure and script entry
-- `css/style.css` — styling
-- `js/app.js` — application logic
-- `images/` — background image asset
+That URL assumes you already have a local web server + hosts/DNS configuration for that domain. If you don’t, use Option A or B.
 
-## Architecture (developer view)
+## Project layout
 
-All application logic lives in `js/app.js` and is intentionally split into three modules (module pattern via IIFEs):
+- `index.html` — markup + script entry
+- `css/style.css` — styles
+- `js/app.js` — all application logic
+- `images/back.png` — hero background
 
-1. **`budgetController` (model + calculations)**
+## Architecture (how the code is organized)
 
-- Owns all in-memory state in a single `data` object:
+All logic lives in `js/app.js` and is split into three IIFE modules:
+
+### 1) `budgetController` (model + calculations)
+
+Responsibilities:
+
+- Holds all in-memory state in a single `data` object:
 
   ```js
   {
-    allItems: { inc: [], exp: [] },
-    totals: { inc: 0, exp: 0 },
+    allItems: { exp: [], inc: [] },
+    totals: { exp: 0, inc: 0 },
     budget: 0,
     percentage: -1
   }
   ```
 
-- Creates items via simple constructor functions (`Income`, `Expense`)
-- Assigns deterministic IDs per type (last ID + 1)
-- Performs all math in one place:
-  - `totalInc = sum(inc)`
-  - `totalExp = sum(exp)`
+- Creates items via the `Income` and `Expense` constructor functions
+- Generates IDs per type as `lastId + 1` (or `0` when empty)
+- Owns all business math:
+  - totals are sums of `value`
   - `budget = totalInc - totalExp`
-  - `percentage = round((totalExp / totalInc) * 100)` or `-1` when income is 0
+  - `percentage = round(totalExp / totalInc * 100)`, or `-1` when income is `0`
 
-2. **`UIController` (DOM reads/writes)**
+Key API:
 
-- Centralizes query selectors in a `DOMStrings` map
-- Reads form data via `getInput()` and parses numeric values with `parseFloat`
-- Renders list items by building HTML strings and inserting them with `insertAdjacentHTML`
-- Updates the “budget header” UI in one method (`displayBudget`)
-- Sets the month label via `displayMonth()` (uses `new Date()` + month name lookup)
+- `addItem(type, description, value)`
+- `deleteItem(type, id)`
+- `calculateBudget()`
+- `getBudget()`
 
-3. **`controller` (wiring + orchestration)**
+### 2) `UIController` (DOM reads/writes)
 
-- Owns event listener registration
-- Defines the two main user flows:
-  - `ctrlAddItem()` — validate → add to model → render → clear fields → recompute summary
-  - `ctrlDeleteItem()` — identify clicked row → delete from model → delete from DOM → recompute summary
-- Initializes safely on `DOMContentLoaded` to ensure the month label exists
+Responsibilities:
 
-## Development notes
+- Centralizes selectors in `DOMStrings`
+- Reads form state via `getInput()`:
+  - `type` is `inc` or `exp`
+  - `value` is parsed via `parseFloat(...)`
+- Writes list rows via `insertAdjacentHTML(...)`
+- Updates the header totals in `displayBudget(budget)`
+- Sets the month label in `displayMonth()`
 
-### External dependencies
+DOM contract:
 
-This project pulls a couple of assets via CDN (fonts/icons). If you are developing offline, some icons/fonts may not render until you restore network access.
+- The app relies on specific class names like `.add__description`, `.income__list`, `.expenses__list`, `.budget__value`, etc.
+- List row element IDs are rendered as `inc-<id>` and `exp-<id>`.
+
+### 3) `controller` (wiring + orchestration)
+
+Responsibilities:
+
+- Registers event listeners
+- Implements the two user flows:
+  - `ctrlAddItem()` — validate → add → render → clear fields → update totals
+  - `ctrlDeleteItem()` — identify clicked row → delete model → delete DOM → update totals
+- Initializes on `DOMContentLoaded`:
+  - writes initial “0” budget state
+  - writes current month label
+
+## Runtime behavior (important implementation details)
 
 ### Data lifecycle
 
-- Data is stored **in memory only** (refresh resets state).
-- DOM row IDs (`inc-0`, `exp-3`, …) are used as the bridge between the UI and the model.
+- State is in-memory only (refresh resets everything)
+- The DOM row IDs (`inc-0`, `exp-3`, …) are the bridge between UI and model
 
-### Browser support
+### Events
 
-The code is written for modern evergreen browsers. It uses classic DOM APIs and should work in current Chrome/Edge/Firefox/Safari.
+- Add item:
+  - click `.add__btn`
+  - press Enter (document-level `keypress` handler)
+- Delete item:
+  - single delegated click handler on `.container`
 
-### Troubleshooting
+### Cache busting
 
-- **Icons/fonts not showing**: check your network connection (CDN assets) and your browser DevTools console/network tab.
-- **Things behave differently than production**: prefer running a local server instead of opening `index.html` via `file://`.
-- **Local URL doesn’t load** (e.g. `http://thebudgetapplication.localhost/`): ensure whatever is hosting/serving that domain is running; otherwise use one of the static server options above.
+The script is included as `js/app.js?v=...` in `index.html`. If you’re fighting browser caching during development, bump the `v=` value.
 
-### Common modifications
+## Common changes
 
-- **Change styling/layout**: edit `css/style.css`.
-- **Update calculations/business rules**: update `budgetController` in `js/app.js`.
-- **Change markup/labels**: edit `index.html` and/or the HTML string templates in `UIController`.
+- Styling/layout: edit `css/style.css`
+- Business rules (totals/percentages): edit `budgetController` in `js/app.js`
+- Markup/labels: edit `index.html` and the HTML templates in `UIController.addListItem(...)`
 
-## Key interaction flows
+## Troubleshooting
 
-### Add item
+- Icons not showing
+  - Ionicons is loaded from an `http://` URL in `index.html`. If you serve the app over HTTPS, browsers may block it as mixed content.
+  - Fix by switching the Ionicons link to HTTPS (or host the icon CSS locally).
 
-1. Read UI input (type/description/value)
-2. Validate basic constraints (non-empty description, numeric value > 0)
-3. Add item to the data model
-4. Render the new row into the appropriate list
-5. Clear and focus the input fields
-6. Recompute totals and repaint the summary
+- Delete doesn’t work after changing markup
+  - `ctrlDeleteItem` uses chained `parentNode` traversal to find the row ID. If you change the nesting, update the traversal or use `closest('.item')`.
 
-### Delete item (event delegation)
+- Numbers look “raw”
+  - Values are displayed as plain JS numbers (no currency formatting, rounding, or thousands separators).
 
-Instead of adding a click handler per row, the app attaches **one** handler to `.container` and uses bubbling to determine which item was targeted. The DOM row IDs (`inc-0`, `exp-3`, …) provide a stable bridge between UI and model.
+- “thebudgetapplication.localhost” doesn’t load
+  - That URL is workspace-specific and depends on your local web server setup. Use `index.html` directly or run a static server.
 
-## Design & implementation details (the “why”)
+## Known limitations (by design)
 
-- **Separation of concerns**: The UI never “calculates” totals; it only displays values returned by `budgetController.getBudget()`.
-- **Single source of truth**: All totals derive from the in-memory arrays (`data.allItems.inc/exp`). The DOM is treated as a view.
-- **Deterministic IDs**: IDs are predictable, stable per list, and cheap to generate without external dependencies.
-- **Composable update step**: `updateBudget()` isolates “recompute + repaint” so both add and delete flows stay consistent.
-- **Graceful empty-income state**: When income is 0, percentage shows `---` to avoid misleading output.
-
-## UX and visual design
-
-- Two-column layout for Income vs Expenses
-- Strong visual hierarchy in the top summary panel
-- Color language:
-  - teal for income
-  - red for expenses
-- Background image + overlay gradient for legibility
-
-## Limitations / polish opportunities (intentional transparency)
-
-This project keeps the implementation intentionally simple. A few areas are good candidates for follow-up work:
-
-- **No persistence**: data lives in memory only; refresh resets the budget.
-- **Number formatting**: values are displayed as raw numbers (no currency formatting or thousands separators).
-- **Per-expense percentage**: the expense row markup currently includes a placeholder percentage value.
-- **Delete targeting**: the delete handler relies on chained `parentNode` traversal, which is fragile if markup changes.
-- **Keyboard handling**: it uses `keypress`/keyCode patterns that are considered legacy in modern browsers.
-
-## Contributing
-
-Small, focused improvements are welcome.
-
-- Keep changes framework-free (no bundlers required).
-- Preserve the three-module separation in `js/app.js`.
-- Prefer readable, explicit DOM code over clever abstractions.
+- No persistence (no LocalStorage / backend)
+- Expense-row percentage is currently a hard-coded placeholder in the template
+- Uses legacy `keypress`/`keyCode` patterns for Enter detection
 
 ## Deployment
 
-This app can be deployed to any static hosting provider (GitHub Pages, Netlify, Vercel static, S3, etc.).
+Deploy to any static host (GitHub Pages, Netlify, S3, IIS static, etc.):
 
-- Upload `index.html` plus the `css/`, `js/`, and `images/` folders.
-- No environment variables or server configuration are required.
+- Publish `index.html` plus `css/`, `js/`, and `images/`
+- No environment variables or server-side logic required
 
-## For recruiters / hiring teams
+## Debugging tips
 
-If you’re scanning for signal: this project emphasizes **clean modularization**, **DOM event patterns**, and **predictable state updates** without frameworks.
+- Open DevTools Console; the modules are global (`budgetController`, `UIController`, `controller`).
+- Inspect in-memory state by calling `budgetController.testing()`.
+- If you refactor selectors, note the accessor is named `getDOMStrrings()` (spelling as in code).
